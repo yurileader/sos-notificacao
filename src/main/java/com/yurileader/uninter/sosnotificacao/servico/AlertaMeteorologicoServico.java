@@ -1,29 +1,39 @@
-package com.yurileader.uninter.sosnotificacao.service;
+package com.yurileader.uninter.sosnotificacao.servico;
 
 import com.yurileader.uninter.sosnotificacao.dto.AlertaMeteorologicoDTO;
 import com.yurileader.uninter.sosnotificacao.dto.PrevisaoMeteorologicoDTO;
-import com.yurileader.uninter.sosnotificacao.dto.UsuarioDTO;
-import com.yurileader.uninter.sosnotificacao.service.client.HgMeteorologiaApiClient;
+import com.yurileader.uninter.sosnotificacao.servico.client.HgMeteorologiaApiClient;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
-@RequiredArgsConstructor
-@Service
-public class AlertaMeteorologicoServico {
 
+@Service
+@RequiredArgsConstructor
+public class AlertaMeteorologicoServico {
     private static final double LIMITE_CHUVA_MM = 50.0;
+
+    private final HgMeteorologiaApiClient client;
+    private final NotificacaoServico notificacaoServico;
+
 
     @Value("${weather.api.key}")
     private String apiKey;
 
-    private final HgMeteorologiaApiClient client;
+    @Value("${weather.api.cidade}")
+    private String cidade;
 
+//    @Value("${weather.api.temporizador}")
+//    private String temporizador;
 
-    public void checarAlertas(String cidade) {
-        AlertaMeteorologicoDTO alertas = client.getAlertas(apiKey, cidade);
+    @Scheduled(fixedRateString = "${weather.api.temporizador}") // 30 minutos em milissegundos
+    public void checarAlertas() {
+        AlertaMeteorologicoDTO alertas = client.buscarAlertas(apiKey, cidade);
 
         Optional<PrevisaoMeteorologicoDTO> max = alertas.getResults().getForecast().stream()
                 .filter(previsaoDia -> previsaoDia.getRain() > LIMITE_CHUVA_MM)
@@ -35,7 +45,7 @@ public class AlertaMeteorologicoServico {
             PrevisaoMeteorologicoDTO previsao = max.get();
             String msg = String.format(
                     "⚠️ Alerta de Chuva Severa! \n" +
-                            "Data: %s\n" +
+                            "Inundações iminentes. Procure abrigo elevado na Data: %s\n" +
                             "Descrição: %s\n" +
                             "Hora de Início: %s\n" +
                             "Hora de Término: %s\n" +
@@ -47,17 +57,10 @@ public class AlertaMeteorologicoServico {
                     previsao.getRain()
             );
             System.out.println(msg);
-            // Implementar lógica de notificação aqui (ex: SMS/WhatsApp).
+            notificacaoServico.enviar(msg);
         } else {
             System.out.println("✔️ Sem alertas de tempo severo para " + cidade + ".");
         }
     }
 
-    public void criarUsuario(UsuarioDTO usuarioDTO) {
-
-    }
-
-    public void desativarUsuario(Long id) {
-
-    }
 }
