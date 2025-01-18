@@ -28,9 +28,6 @@ public class AlertaMeteorologicoServico {
     @Value("${weather.api.cidade}")
     private String cidade;
 
-//    @Value("${weather.api.temporizador}")
-//    private String temporizador;
-
     @Scheduled(fixedRateString = "${weather.api.temporizador}") // 30 minutos em milissegundos
     public void checarAlertas() {
         AlertaMeteorologicoDTO alertas = client.buscarAlertas(apiKey, cidade);
@@ -44,7 +41,7 @@ public class AlertaMeteorologicoServico {
 
             PrevisaoMeteorologicoDTO previsao = max.get();
             String msg = String.format(
-                    "⚠️ Alerta de Chuva Severa! \n" +
+                    "\n⚠️ Você tem um alerta de Chuva Severa! \n" +
                             "Inundações iminentes. Procure abrigo elevado na Data: %s\n" +
                             "Descrição: %s\n" +
                             "Hora de Início: %s\n" +
@@ -57,9 +54,14 @@ public class AlertaMeteorologicoServico {
                     previsao.getRain()
             );
             System.out.println(msg);
-            notificacaoServico.enviar(msg);
+            notificacaoServico.enviarAlertas(msg);
         } else {
-            System.out.println("✔️ Sem alertas de tempo severo para " + cidade + ".");
+            notificacaoServico.enviarAlertas(
+                    "\n☀️ Boa notícia! " +
+                            "\nNão há alertas de temporais para a cidade de " + cidade + " no momento. " +
+                            "\nDesfrute do seu dia com tranquilidade e segurança!"
+            );
+
         }
     }
 

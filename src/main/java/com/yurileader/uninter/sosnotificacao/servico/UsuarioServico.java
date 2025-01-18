@@ -13,25 +13,35 @@ import org.springframework.stereotype.Service;
 public class UsuarioServico {
 
     private final UsuarioRepositorio repositorio;
+    private final NotificacaoServico notificacaoServico;
+
+    public void enviarConfirmacao(String destinatario) {
+       notificacaoServico.enviarConfirmacao(removerCaracteresTelefone(destinatario));
+    }
+
+    public boolean confirmarNumeroValido(String destinatario, String numeroConfirmacao) {
+        return notificacaoServico.validarTokenConfirmacao(destinatario, numeroConfirmacao);
+    }
 
     public void criarUsuario(UsuarioDTO usuarioDTO) {
+        excluirUsuarioSeExistir(usuarioDTO.getTelefone());
+
         validarNome(usuarioDTO.getNome());
         validarCelular(usuarioDTO.getTelefone());
         Usuario entity = UsuarioMapper.INSTANCE.toEntity(usuarioDTO);
         entity.setReceberNotificacao(Boolean.TRUE);
+
         repositorio.save(entity);
     }
 
-    public void desativarUsuario(Long id) {
-        Usuario usuario = repositorio.findById(id)
+    public void desativarUsuario(String telefone) {
+        Usuario usuario = repositorio.findByTelefone(removerCaracteresTelefone(telefone))
                 .orElseThrow(() -> new ValidacaoException("Usuário não encontrado"));
 
         if(Boolean.TRUE.equals(usuario.getReceberNotificacao())){
             usuario.setReceberNotificacao(false);
             repositorio.save(usuario);
         }
-
-        repositorio.deleteById(usuario.getId());
     }
 
 
@@ -43,14 +53,24 @@ public class UsuarioServico {
     }
 
     private void validarCelular(String telefone) {
-        String padraoBrasil = "^\\+55\\d{2}9\\d{8}$";
+        String padraoBrasil = "^\\d{2}9\\d{8}$";
+        telefone = removerCaracteresTelefone(telefone);
 
-        if (telefone != null && !telefone.startsWith("55")) {
-            telefone = "55" + telefone;
-        }
 
         if (telefone == null || !telefone.matches(padraoBrasil)) {
              throw new ValidacaoException("Número de telefone celular inválido");
         }
     }
+
+    private void excluirUsuarioSeExistir(String telefone) {
+        repositorio.findByTelefone(telefone)
+                .ifPresent(usuario -> {
+                    repositorio.deleteById(usuario.getId());
+                });
+    }
+
+    private String removerCaracteresTelefone (String telefone){
+        return telefone.replaceAll("[^\\d]", "");
+    }
+
 }
